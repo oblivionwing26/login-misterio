@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sistema de Acceso Restringido</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            color: #0f0;
+            font-family: 'Source Code Pro', monospace;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+        
+        .terminal {
+            border: 2px solid #0f0;
+            border-radius: 5px;
+            padding: 20px;
+            max-width: 800px;
+            margin: 20px auto;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px #0f0;
+        }
+        
+        .question {
+            margin: 15px 0;
+            padding: 10px;
+            border-left: 3px solid #0f0;
+            background: rgba(0, 50, 0, 0.3);
+        }
+        
+        input, button {
+            background: #000;
+            color: #0f0;
+            border: 1px solid #0f0;
+            padding: 8px 15px;
+            margin: 5px;
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: #0f0;
+            color: #000;
+            box-shadow: 0 0 10px #0f0;
+        }
+        
+        .lives {
+            display: flex;
+            justify-content: center;
+            margin: 15px 0;
+        }
+        
+        .life {
+            width: 20px;
+            height: 20px;
+            margin: 0 5px;
+            background: #0f0;
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+        
+        .life.lost {
+            background: #300;
+            box-shadow: 0 0 5px #f00;
+        }
+        
+        .hint {
+            font-style: italic;
+            color: #ff0;
+            margin-top: 10px;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+        
+        .hint.show {
+            opacity: 1;
+        }
+        
+        .log {
+            height: 100px;
+            overflow-y: auto;
+            background: rgba(0, 20, 0, 0.5);
+            padding: 10px;
+            margin-top: 20px;
+            border: 1px solid #0f0;
+            font-size: 12px;
+        }
+        
+        .log-entry {
+            margin: 2px 0;
+        }
+        
+        .cursor {
+            display: inline-block;
+            width: 10px;
+            height: 20px;
+            background: #0f0;
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="terminal">
+        <div class="header">
+            <h1>ACCESO RESTRINGIDO - SISTEMA DE SEGURIDAD NIVEL 3</h1>
+            <p>Identificación requerida. 10 preguntas de verificación.</p>
+        </div>
+        
+        <div class="lives" id="lives">
+            <div class="life"></div>
+            <div class="life"></div>
+            <div class="life"></div>
+        </div>
+        
+        <div id="question-container">
+            <!-- Las preguntas se cargarán aquí -->
+        </div>
+        
+        <div class="hint" id="hint"></div>
+        
+        <div class="log" id="log">
+            <div class="log-entry">[SYSTEM] Iniciando protocolo de verificación...</div>
+        </div>
+    </div>
+
+    <script>
+        // Base de datos de preguntas (rellenar por el usuario)
+        const preguntas = [
+            {
+                pregunta: "Como se llama el cangrejo verde de mi casa?",
+                respuesta: "Calras",
+                pista: "(🦞👳‍♀️)"
+            },
+            {
+                pregunta: "Que me lanzaste en la playa?",
+                respuesta: "Patata",
+                pista: "(Una sola palabra)"
+            },
+            {
+                pregunta: "Juego que has creado tu",
+                respuesta: "Monkey gaming",
+                pista: "(Mono)"
+            },
+            {
+                pregunta: "¿Qué entidad invisible y absoluta, que existe sin depender de materia ni energía, fluye siempre en una sola dirección y marca el destino de todo lo que existe?",
+                respuesta: "Tiempo",
+                pista: "(Una palabra)"
+            },
+            {
+                pregunta: "Que es lo que mas queria Eren",
+                respuesta: "Libertad",
+                pista: "🐚"
+            },
+            {
+                pregunta: "¿Qué misterio une corazones distantes, desafía al tiempo y a la razón, y brilla incluso en la oscuridad más profunda?",
+                respuesta: "Amor",
+                pista: " (1 palabra)"
+            },
+            {
+                pregunta: "Cual es el nombre del arma de la enamorada de Gehrman en Bloodborne?",
+                respuesta: "Rakuyo",
+                pista: "(1 palabra)"
+            },
+            {
+                pregunta: "Quien fue el que 'invento' la Atlantida?",
+                respuesta: "Platon",
+                pista: "(o primero que la menciono)"
+            },
+            {
+                pregunta: "Quis post finem mundi vivit et novam vitam hominibus affert? (Mythos Nordicus)",
+                respuesta: "Líf and Lífþrasir",
+                pista: "Ella and El"
+            },
+            {
+                pregunta: "Esta es la pregunta 10, ultima, noche en que todo empezo",
+                respuesta: "19/03/2019",
+                pista: " DD/MM/YYYY"
+            }
+        ];
+        
+        let preguntaActual = 0;
+        let vidas = 3;
+        let pistasUsadas = 0;
+        
+        function addLog(message) {
+            const log = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.textContent = [${new Date().toLocaleTimeString()}] ${message};
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        function mostrarPregunta() {
+            if (preguntaActual >= preguntas.length) {
+                // Juego completado
+                document.getElementById('question-container').innerHTML = `
+                    <h2>VERIFICACIÓN COMPLETADA</h2>
+                    <p>Acceso concedido al sistema.</p>
+                    <p>Contraseña cifrada: <strong>XUBBE_789</strong></p>
+                    <p>Pista de descifrado: "Clave: CIBER" (Cifrado Vigenère)</p>
+                `;
+                addLog("Verificación completada. Acceso concedido.");
+                return;
+            }
+            
+            const p = preguntas[preguntaActual];
+            document.getElementById('question-container').innerHTML = `
+                <div class="question">
+                    <p><strong>PREGUNTA ${preguntaActual + 1}/10:</strong> ${p.pregunta}</p>
+                    <input type="text" id="respuesta" placeholder="Introduce tu respuesta">
+                    <button onclick="verificarRespuesta()">Verificar</button>
+                    <button onclick="mostrarPista()">Usar pista (${3 - pistasUsadas} restantes)</button>
+                </div>
+            `;
+            
+            document.getElementById('respuesta').focus();
+            addLog(Mostrando pregunta ${preguntaActual + 1}: ${p.pregunta.substring(0, 20)}...);
+        }
+        
+        function verificarRespuesta() {
+            const respuesta = document.getElementById('respuesta').value.toLowerCase().trim();
+            const correcta = preguntas[preguntaActual].respuesta.toLowerCase();
+            
+            if (respuesta === correcta) {
+                addLog("Respuesta correcta. Avanzando...");
+                preguntaActual++;
+                mostrarPregunta();
+            } else {
+                vidas--;
+                actualizarVidas();
+                addLog(Respuesta incorrecta. Vidas restantes: ${vidas});
+                
+                if (vidas <= 0) {
+                    document.getElementById('question-container').innerHTML = `
+                        <h2>ACCESO DENEGADO</h2>
+                        <p>Has bloqueado el sistema al acumular suficientes errores. Reiniciando....</p>
+                        <button onclick="location.reload()">Reiniciar sistema</button>
+                    `;
+                    addLog("Sistema bloqueado. Demasiados intentos fallidos.");
+                } else {
+                    document.getElementById('respuesta').value = '';
+                    document.getElementById('respuesta').focus();
+                }
+            }
+        }
+        
+        function mostrarPista() {
+            if (pistasUsadas < 3) {
+                pistasUsadas++;
+                const pista = document.getElementById('hint');
+                pista.textContent = PISTA: ${preguntas[preguntaActual].pista};
+                pista.classList.add('show');
+                addLog(Pista solicitada: ${preguntas[preguntaActual].pista.substring(0, 20)}...);
+                
+                setTimeout(() => {
+                    pista.classList.remove('show');
+                }, 10000);
+            }
+        }
+        
+        function actualizarVidas() {
+            const elementosVida = document.querySelectorAll('.life');
+            elementosVida.forEach((vida, index) => {
+                if (index >= vidas) {
+                    vida.classList.add('lost');
+                }
+            });
+        }
+        
+        // Iniciar el juego
+        mostrarPregunta();
+        addLog("Sistema listo. Esperando entrada del usuario...");
+    </script>
+</body>
+</html>

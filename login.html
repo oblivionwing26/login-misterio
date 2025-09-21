@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Terminal de Acceso Seguro</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            color: #0f0;
+            font-family: 'Source Code Pro', monospace;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        
+        .terminal {
+            width: 90%;
+            max-width: 600px;
+            border: 2px solid #0f0;
+            border-radius: 5px;
+            padding: 20px;
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.5);
+            position: relative;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px #0f0;
+        }
+        
+        .login-form {
+            margin: 20px 0;
+        }
+        
+        .input-group {
+            margin: 15px 0;
+            position: relative;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #0f0;
+        }
+        
+        .input-group input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid #0f0;
+            color: #0f0;
+            padding: 5px 0;
+            font-family: inherit;
+            font-size: 16px;
+            outline: none;
+        }
+        
+        .input-group input:focus {
+            border-bottom-color: #ff0;
+            box-shadow: 0 1px 0 #ff0;
+        }
+        
+        .button-group {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        
+        button {
+            background: transparent;
+            color: #0f0;
+            border: 1px solid #0f0;
+            padding: 8px 20px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: #0f0;
+            color: #000;
+            box-shadow: 0 0 10px #0f0;
+        }
+        
+        .error {
+            color: #f00;
+            margin-top: 10px;
+            height: 20px;
+            text-align: center;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        
+        .loading.active {
+            display: flex;
+        }
+        
+        .loading-text {
+            margin-top: 20px;
+        }
+        
+        .progress-bar {
+            width: 80%;
+            height: 5px;
+            background: #333;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        
+        .progress {
+            height: 100%;
+            background: #0f0;
+            width: 0%;
+            animation: progress 2s ease-in-out;
+        }
+        
+        @keyframes progress {
+            0% { width: 0%; }
+            100% { width: 100%; }
+        }
+        
+        .matrix-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.1;
+        }
+        
+        .cursor {
+            display: inline-block;
+            width: 10px;
+            height: 20px;
+            background: #0f0;
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <canvas class="matrix-bg" id="matrix"></canvas>
+    
+    <div class="terminal">
+        <div class="header">
+            <h1>ACCESO SEGURO V2.0</h1>
+            <p>Terminal de autenticación biométrica avanzada</p>
+        </div>
+        
+        <div class="login-form">
+            <div class="input-group">
+                <label for="username">Usuario:</label>
+                <input type="text" id="username" autocomplete="off">
+            </div>
+            
+            <div class="input-group">
+                <label for="password">Contraseña:</label>
+                <input type="password" id="password" autocomplete="off">
+            </div>
+            
+            <div class="button-group">
+                <button onclick="resetForm()">Limpiar</button>
+                <button onclick="attemptLogin()">Acceder</button>
+            </div>
+            
+            <div class="error" id="error-message"></div>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div>Autenticando...</div>
+            <div class="progress-bar">
+                <div class="progress"></div>
+            </div>
+            <div class="loading-text">Verificando credenciales...</div>
+        </div>
+    </div>
+
+    <script>
+        // Efecto Matrix de fondo
+        const canvas = document.getElementById('matrix');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        const matrix = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789@#$%^&()&^%+-/~{[|`]}";
+        const matrixArray = matrix.split("");
+        
+        const fontSize = 10;
+        const columns = canvas.width / fontSize;
+        
+        const drops = [];
+        for(let x = 0; x < columns; x++) {
+            drops[x] = 1;
+        }
+        
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.04)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = '#0f0';
+            ctx.font = fontSize + 'px monospace';
+            
+            for(let i = 0; i < drops.length; i++) {
+                const text = matrixArray[Math.floor(Math.random() * matrixArray.length)];
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                
+                if(drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+        }
+        
+        setInterval(drawMatrix, 35);
+        
+        // Sistema de login
+        function attemptLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorMsg = document.getElementById('error-message');
+            const loading = document.getElementById('loading');
+            
+            if (!username || !password) {
+                errorMsg.textContent = "Error: Campos vacíos";
+                return;
+            }
+            
+            loading.classList.add('active');
+            errorMsg.textContent = "";
+            
+            setTimeout(() => {
+                loading.classList.remove('active');
+                
+                // Credenciales correctas
+                if (username === "user_mystery" && password === "HACKER_789") {
+                    window.location.href = "final.html";
+                } else {
+                    errorMsg.textContent = "Error: Credenciales inválidas. Acceso denegado.";
+                }
+            }, 2000);
+        }
+        
+        function resetForm() {
+            document.getElementById('username').value = "";
+            document.getElementById('password').value = "";
+            document.getElementById('error-message').textContent = "";
+        }
+        
+        // Efecto de escritura
+        document.addEventListener('DOMContentLoaded', () => {
+            const inputs = document.querySelectorAll('input');
+            inputs.forEach(input => {
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        attemptLogin();
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
